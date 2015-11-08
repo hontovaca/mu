@@ -1,0 +1,7 @@
+root:x:0:
+bin:x:1:
+daemon:x:2:
+wheel:x:10:
+sshd:x:22:
+shadow:x:42:
+nobody:x:65534:

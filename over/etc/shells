@@ -1,0 +1,4 @@
+# valid login shells
+/bin/prefsh
+/bin/sh
+/bin/ash

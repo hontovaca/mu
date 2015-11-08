@@ -1,0 +1,15 @@
+#!/usr/bin/execlineb -S0
+
+# support execline-shell
+import -D / HOME
+tryexec { "${HOME}/.execline-shell" $@ }
+tryexec { "${HOME}/.shell" $@ }
+
+# fallbacks
+tryexec { /bin/zsh $@ }
+tryexec { /bin/bash $@ }
+tryexec { /bin/ash $@ }
+tryexec { /bin/busybox ash $@ }
+tryexec { /sbin/nologin }
+tryexec { /bin/false }
+false
