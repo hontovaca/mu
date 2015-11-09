@@ -8,10 +8,11 @@ for ent in _G.io.lines "/etc/passwd" do
       run = realign([[
       #!/usr/bin/execlineb -P
       fdclose 0 fdmove -c 2 1
+      cd %s
       s6-setuidgid %s
       tryexec -c { %s/.user2-run }
       s6-pause
-      ]]):format(user, home),
+      ]]):format(home, user, home),
     }
 
     rc["user2-log:" .. user]:merge {
