@@ -4,4 +4,5 @@ daemon:x:2:
 wheel:x:10:
 sshd:x:22:
 shadow:x:42:
+nogroup:x:65533:
 nobody:x:65534:
