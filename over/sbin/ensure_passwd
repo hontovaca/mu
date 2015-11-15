@@ -35,7 +35,7 @@ end
 local dstpath = "/etc/passwd." .. ffi.C.getpid()
 local dst = assert(io.open(dstpath, "w"))
 
-local maxuid = 500
+local newuid = 500
 local function update(user, pwd, uid, gid, gecos, home, shell)
   if spec["-" .. user] or user:sub(1,1) == "-" then
     spec["-" .. user] = nil
@@ -43,14 +43,14 @@ local function update(user, pwd, uid, gid, gecos, home, shell)
   end
 
   local def = spec[user] or {}
-  uid   = tonumber(def[1] or uid or maxuid+1)
+  uid   = tonumber(def[1] or uid or newuid)
   gid   = tonumber(def[2] or gid or uid)
   gecos = def[3] or gecos
   home  = def[4] or home
   shell = def[5] or shell
 
-  if uid > maxuid and uid < 32768 then
-    maxuid = uid
+  if uid >= newuid and uid < 32768 then
+    newuid = uid+1
   end
 
   spec[user] = nil

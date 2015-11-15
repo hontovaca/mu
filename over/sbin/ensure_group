@@ -34,7 +34,7 @@ end
 local dstpath = "/etc/group." .. ffi.C.getpid()
 local dst = assert(io.open(dstpath, "w"))
 
-local maxgid = 500
+local newgid = 500
 local function update(grup, pwd, gid, mem)
   if spec["-" .. grup] or grup:sub(1,1) == "-" then
     spec["-" .. grup] = nil
@@ -42,9 +42,9 @@ local function update(grup, pwd, gid, mem)
   end
 
   local def = spec[grup] or {nil, {}}
-  gid = tonumber(def[1] or gid or maxgid+1)
-  if gid > maxgid and gid < 32768 then
-    maxgid = gid
+  gid = tonumber(def[1] or gid or newgid)
+  if gid >= newgid and gid < 32768 then
+    newgid = gid+1
   end
 
   local lst = {}
