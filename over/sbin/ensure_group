@@ -1,0 +1,77 @@
+#!/usr/bin/luajit
+setmetatable(_G, {__index = function (t,k) error("global read: "..k, 2) end})
+local ffi = require 'ffi'
+
+ffi.cdef [[
+typedef int pid_t;
+
+pid_t getpid(void);
+int rename(const char *, const char *);
+char *strerror(int);
+]]
+
+local function ret0(f)
+  return function(...)
+    if ffi.C[f](...) < 0 then
+      return nil, ffi.string(ffi.C.strerror(ffi.errno()))
+    end
+    return true
+  end
+end
+
+local spec = {}
+for k,v in ipairs(arg) do
+  -- group=gid:list,of,members
+  local grp = v:match "^([^=:]+)"
+  local gid = v:match "=(%d+)"
+  local mem = v:match ":(.*)" or ""
+  spec[grp] = {gid, {}}
+  for m in mem:gmatch "[^,]+" do
+    spec[grp][2][m] = true
+  end
+end
+
+local dstpath = "/etc/group." .. ffi.C.getpid()
+local dst = assert(io.open(dstpath, "w"))
+
+local maxgid = 500
+local function update(grup, pwd, gid, mem)
+  if spec["-" .. grup] or grup:sub(1,1) == "-" then
+    spec["-" .. grup] = nil
+    return
+  end
+
+  local def = spec[grup] or {nil, {}}
+  gid = tonumber(def[1] or gid or maxgid+1)
+  if gid > maxgid and gid < 32768 then
+    maxgid = gid
+  end
+
+  local lst = {}
+  for m in mem:gmatch "[^,]+" do
+    if not def[2][m] and not def[2]["-" .. m] then
+      table.insert(lst, m)
+    end
+  end
+  for m in pairs(def[2]) do
+    if m:sub(1,1) ~= "-" then
+      table.insert(lst, m)
+    end
+  end
+  table.sort(lst)
+  mem = table.concat(lst, ",")
+
+  spec[grup] = nil
+  dst:write(("%s:%s:%s:%s\n"):format(grup, pwd, gid, mem))
+end
+
+for e in io.lines("/etc/group") do
+  update(e:match "^([^:]+):([^:]*):(%d+):(.*)")
+end
+
+for grup in pairs(spec) do
+  update(grup, "x", nil, "")
+end
+
+dst:close()
+assert(ret0("rename")(dstpath, "/etc/group"))

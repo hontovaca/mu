@@ -1,0 +1,70 @@
+#!/usr/bin/luajit
+setmetatable(_G, {__index = function (t,k) error("global read: "..k, 2) end})
+local ffi = require 'ffi'
+
+ffi.cdef [[
+typedef int pid_t;
+
+pid_t getpid(void);
+int rename(const char *, const char *);
+char *strerror(int);
+]]
+
+local function ret0(f)
+  return function(...)
+    if ffi.C[f](...) < 0 then
+      return nil, ffi.string(ffi.C.strerror(ffi.errno()))
+    end
+    return true
+  end
+end
+
+local spec = {}
+for k,v in ipairs(arg) do
+  -- user=uid+gid:gecos:@home!shell
+  -- user=uid+gid@home!shell:gecos
+  local user  = v:match "^([^=+:@!]+)"
+  local uid   = v:match "=(%d+)"
+  local gid   = v:match "%+(%d+)"
+  local gecos = v:match ":([^:]*)"
+  local home  = v:match "@([^=+:@!]+)"
+  local shell = v:match "!([^=+:@!]+)"
+  spec[user] = {uid, gid, gecos, home, shell}
+end
+
+local dstpath = "/etc/passwd." .. ffi.C.getpid()
+local dst = assert(io.open(dstpath, "w"))
+
+local maxuid = 500
+local function update(user, pwd, uid, gid, gecos, home, shell)
+  if spec["-" .. user] or user:sub(1,1) == "-" then
+    spec["-" .. user] = nil
+    return
+  end
+
+  local def = spec[user] or {}
+  uid   = tonumber(def[1] or uid or maxuid+1)
+  gid   = tonumber(def[2] or gid or uid)
+  gecos = def[3] or gecos
+  home  = def[4] or home
+  shell = def[5] or shell
+
+  if uid > maxuid and uid < 32768 then
+    maxuid = uid
+  end
+
+  spec[user] = nil
+  dst:write(("%s:%s:%d:%d"):format(user, pwd, uid, gid))
+  dst:write((":%s:%s:%s\n"):format(gecos, home, shell))
+end
+
+for e in io.lines("/etc/passwd") do
+  update(e:match "^([^:]+):([^:]*):(%d+):(%d+):([^:]*):([^:]*):([^:]*)")
+end
+
+for user in pairs(spec) do
+  update(user, "x", nil, nil, "", "/dev/null", "/sbin/nologin")
+end
+
+dst:close()
+assert(ret0("rename")(dstpath, "/etc/passwd"))

@@ -1,0 +1,73 @@
+#!/usr/bin/luajit
+setmetatable(_G, {__index = function (t,k) error("global read: "..k, 2) end})
+local ffi = require 'ffi'
+
+-- XXX musl-specific
+ffi.cdef [[
+typedef unsigned mode_t;
+typedef unsigned uid_t;
+typedef unsigned gid_t;
+typedef int pid_t;
+
+int chmod(const char *, mode_t);
+int chown(const char *, uid_t, gid_t);
+pid_t getpid(void);
+struct group *getgrnam(const char *);
+int rename(const char *, const char *);
+char *strerror(int);
+]]
+
+local function ret0(f)
+  return function(...)
+    if ffi.C[f](...) < 0 then
+      return nil, ffi.string(ffi.C.strerror(ffi.errno()))
+    end
+    return true
+  end
+end
+
+local spec = {}
+for k,v in ipairs(arg) do
+  local user = v:match "^([^:]+)"
+  local pass = v:match ":(.*)"
+  spec[user] = {pass}
+end
+
+local gid = 42 -- XXX hard-coded default
+for g in io.lines("/etc/group") do
+  local sid = g:match "^shadow:[^:]*:(%d+):"
+  if sid then
+    gid = tonumber(sid)
+    break
+  end
+end
+
+local dstpath = "/etc/shadow." .. ffi.C.getpid()
+local dst = assert(io.open(dstpath, "w"))
+assert(ret0("chown")(dstpath, 0, gid))
+assert(ret0("chmod")(dstpath, 416)) -- 0640
+
+local function update(user, pass, junk)
+  if spec["-" .. user] or user:sub(1,1) == "-" then
+    spec["-" .. user] = nil
+    return
+  end
+
+  local def = spec[user] or {}
+
+  pass = def[1] or pass
+
+  spec[user] = nil
+  dst:write(("%s:%s:%s\n"):format(user, pass, junk))
+end
+
+for e in io.lines("/etc/shadow") do
+  update(e:match "^([^:]+):([^:]*):(.*)")
+end
+
+for user in pairs(spec) do
+  update(user, "!", ":0:::::")
+end
+
+dst:close()
+assert(ret0("rename")(dstpath, "/etc/shadow"))
