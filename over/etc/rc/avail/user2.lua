@@ -6,7 +6,7 @@ for ent in _G.io.lines "/etc/passwd" do
       type = "longrun",
       producer_for = "user2-log:" .. user,
       run = realign([[
-      #!/usr/bin/execlineb -P
+      #!/bin/execlineb -P
       fdclose 0 fdmove -c 2 1
       define USER %q
       export HOME %q import -i HOME
@@ -29,7 +29,7 @@ for ent in _G.io.lines "/etc/passwd" do
       type = "longrun",
       consumer_for = "user2:" .. user,
       run = realign([[
-      #!/usr/bin/execlineb -P
+      #!/bin/execlineb -P
       fdclose 0 fdclose 1 fdclose 2
       s6-setuidgid %q
       s6-log t %q/.user2-uncaught

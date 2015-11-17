@@ -1,4 +1,4 @@
-#!/usr/bin/execlineb -S0
+#!/bin/execlineb -S0
 if { chown root:shadow /etc/shadow }
 if { chmod 0640 /etc/shadow }
 if { apk -U add openssh sudo }
