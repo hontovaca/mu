@@ -30,7 +30,7 @@ for ent in _G.io.lines "/etc/passwd" do
       consumer_for = "user2:" .. user,
       run = realign([[
       #!/bin/execlineb -P
-      fdclose 0 fdclose 1 fdclose 2
+      fdclose 1 fdclose 2
       s6-setuidgid %q
       s6-log t %q/.user2-uncaught
       ]]):format(user, home),
