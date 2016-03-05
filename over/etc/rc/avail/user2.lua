@@ -9,18 +9,20 @@ for ent in _G.io.lines "/etc/passwd" do
       #!/bin/execlineb -P
       fdclose 0 fdmove -c 2 1
       define USER %q
-      export HOME %q import -i HOME
+      define HOME %q
       getcwd SERVICE import -i SERVICE
       getpid USERPID import -i USERPID
+      emptyenv -p
 
       s6-envuidgid $USER
       if { import -i GID chgrp $GID supervise supervise/control }
       if { chmod g+x supervise }
       if { chmod g+w supervise/control }
-      s6-applyuidgid -U
 
       cd $HOME
-      tryexec -c { ./.user2-run }
+      s6-applyuidgid -Uz
+      export HOME $HOME
+      tryexec { ./.user2-run }
       s6-svc -O $SERVICE
       ]]):format(user, home),
     }
